@@ -1,0 +1,1085 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Recap — AI Meeting Notes</title>
+<style>
+  :root {
+    --bg: #0f1115;
+    --panel: #171a21;
+    --panel-2: #1e222b;
+    --border: #2a2f3a;
+    --text: #e8eaed;
+    --muted: #8a92a3;
+    --accent: #6c8cff;
+    --accent-2: #4ade80;
+    --danger: #f87171;
+    --radius: 10px;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    height: 100vh;
+    display: flex;
+  }
+  /* Sidebar */
+  .sidebar {
+    width: 260px;
+    background: var(--panel);
+    border-right: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    flex-shrink: 0;
+  }
+  .sidebar-header {
+    padding: 18px 16px;
+    border-bottom: 1px solid var(--border);
+  }
+  .logo {
+    font-weight: 700;
+    font-size: 18px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .logo-dot {
+    width: 10px; height: 10px; border-radius: 50%;
+    background: var(--accent);
+  }
+  .tagline { color: var(--muted); font-size: 12px; margin-top: 4px; }
+  .new-btn {
+    margin: 12px 16px;
+    padding: 10px 14px;
+    background: var(--accent);
+    color: white;
+    border: none;
+    border-radius: var(--radius);
+    font-weight: 600;
+    cursor: pointer;
+    font-size: 14px;
+  }
+  .new-btn:hover { filter: brightness(1.08); }
+  .meeting-list {
+    overflow-y: auto;
+    flex: 1;
+    padding: 4px 8px;
+  }
+  .meeting-item {
+    padding: 10px 12px;
+    border-radius: 8px;
+    cursor: pointer;
+    margin-bottom: 2px;
+    color: var(--muted);
+  }
+  .meeting-item:hover { background: var(--panel-2); }
+  .meeting-item.active { background: var(--panel-2); color: var(--text); }
+  .meeting-item .title { font-size: 13px; font-weight: 600; color: inherit; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .meeting-item .date { font-size: 11px; margin-top: 2px; }
+  .empty-list { padding: 24px 16px; color: var(--muted); font-size: 13px; text-align: center; }
+
+  /* Main */
+  .main {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+  }
+  .topbar {
+    padding: 16px 28px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+  }
+  .title-input {
+    background: transparent;
+    border: none;
+    color: var(--text);
+    font-size: 20px;
+    font-weight: 700;
+    outline: none;
+    width: 100%;
+  }
+  .title-input::placeholder { color: var(--muted); }
+  .controls { display: flex; gap: 10px; align-items: center; flex-shrink: 0; }
+  .rec-btn {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 18px;
+    border-radius: 999px;
+    border: 1px solid var(--border);
+    background: var(--panel-2);
+    color: var(--text);
+    font-weight: 600;
+    cursor: pointer;
+    font-size: 14px;
+  }
+  .rec-btn.recording {
+    background: rgba(248,113,113,0.12);
+    border-color: var(--danger);
+    color: var(--danger);
+  }
+  .rec-dot {
+    width: 9px; height: 9px; border-radius: 50%;
+    background: var(--muted);
+  }
+  .rec-btn.recording .rec-dot {
+    background: var(--danger);
+    animation: pulse 1.2s infinite;
+  }
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.3} }
+  .icon-btn {
+    padding: 10px 14px;
+    border-radius: 999px;
+    border: 1px solid var(--border);
+    background: transparent;
+    color: var(--muted);
+    cursor: pointer;
+    font-size: 13px;
+    font-weight: 600;
+  }
+  .icon-btn:hover { color: var(--text); border-color: var(--accent); }
+
+  .content {
+    flex: 1;
+    display: grid;
+    grid-template-columns: 1.3fr 1fr;
+    overflow: hidden;
+  }
+  .panel {
+    overflow-y: auto;
+    padding: 24px 28px;
+  }
+  .panel + .panel { border-left: 1px solid var(--border); }
+  #transcriptPanel {
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    padding-bottom: 0;
+  }
+  #transcriptBody { flex: 1; overflow-y: auto; padding-right: 2px; }
+  .type-row {
+    display: flex;
+    gap: 8px;
+    padding: 14px 0 24px 0;
+    border-top: 1px solid var(--border);
+    margin-top: 12px;
+    flex-shrink: 0;
+  }
+  .type-row input {
+    flex: 1;
+    background: var(--panel-2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 10px 12px;
+    color: var(--text);
+    font-size: 14px;
+    outline: none;
+  }
+  .type-row input:focus { border-color: var(--accent); }
+  .type-row button {
+    padding: 10px 16px;
+    background: var(--accent);
+    color: white;
+    border: none;
+    border-radius: 8px;
+    font-weight: 600;
+    cursor: pointer;
+    font-size: 13px;
+  }
+  .panel h3 {
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--muted);
+    margin: 0 0 14px 0;
+  }
+  .transcript-line {
+    padding: 8px 0;
+    border-bottom: 1px solid var(--border);
+    line-height: 1.5;
+    font-size: 14.5px;
+  }
+  .transcript-line .t { color: var(--muted); font-size: 11px; margin-right: 8px; }
+  .interim { color: var(--muted); font-style: italic; }
+  .placeholder {
+    color: var(--muted);
+    font-size: 14px;
+    padding: 40px 0;
+    text-align: center;
+  }
+  .summary-block { margin-bottom: 26px; }
+  .summary-text { font-size: 14.5px; line-height: 1.6; color: var(--text); white-space: pre-wrap; }
+  .action-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    padding: 8px 0;
+    font-size: 14px;
+  }
+  .action-item input { margin-top: 3px; accent-color: var(--accent-2); }
+  .action-item.done label { text-decoration: line-through; color: var(--muted); }
+  .badge {
+    display: inline-block;
+    font-size: 11px;
+    padding: 2px 8px;
+    border-radius: 999px;
+    background: rgba(108,140,255,0.15);
+    color: var(--accent);
+    margin-left: 8px;
+  }
+  .kw {
+    display: inline-block;
+    background: var(--panel-2);
+    border: 1px solid var(--border);
+    color: var(--muted);
+    font-size: 12px;
+    padding: 4px 10px;
+    border-radius: 999px;
+    margin: 0 6px 6px 0;
+  }
+  .unsupported {
+    margin: 40px auto;
+    max-width: 480px;
+    text-align: center;
+    color: var(--muted);
+    padding: 20px;
+  }
+  ::-webkit-scrollbar { width: 8px; }
+  ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+
+  .modal-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.55);
+    align-items: center;
+    justify-content: center;
+    z-index: 50;
+  }
+  .modal-overlay.open { display: flex; }
+  .modal {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 24px;
+    width: 420px;
+    max-width: 90vw;
+  }
+  .modal h2 { margin: 0 0 16px 0; font-size: 18px; }
+  .modal-label { display: block; font-size: 12px; color: var(--muted); margin-bottom: 6px; }
+  .modal-input {
+    width: 100%;
+    background: var(--panel-2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 10px 12px;
+    color: var(--text);
+    font-size: 14px;
+    outline: none;
+    margin-bottom: 10px;
+  }
+  .modal-input:focus { border-color: var(--accent); }
+  .modal-hint { font-size: 12px; color: var(--muted); line-height: 1.5; margin: 0 0 18px 0; }
+  .modal-actions { display: flex; justify-content: space-between; align-items: center; }
+</style>
+</head>
+<body>
+
+<div class="sidebar">
+  <div class="sidebar-header">
+    <div class="logo"><span class="logo-dot"></span>Recap</div>
+    <div class="tagline">AI meeting notes, right in your browser</div>
+  </div>
+  <button class="new-btn" id="newMeetingBtn">+ New Meeting</button>
+  <div class="meeting-list" id="meetingList"></div>
+</div>
+
+<div class="main">
+  <div class="topbar">
+    <input class="title-input" id="titleInput" placeholder="Untitled meeting" />
+    <span class="badge" id="syncBadge" style="display:none; flex-shrink:0;">● Synced</span>
+    <div class="controls">
+      <button class="rec-btn" id="recBtn"><span class="rec-dot"></span><span id="recLabel">Record</span></button>
+      <button class="icon-btn" id="shareBtn">Share</button>
+      <button class="icon-btn" id="calendarBtn">Add to Calendar</button>
+      <button class="icon-btn" id="exportBtn">Export .md</button>
+      <button class="icon-btn" id="settingsBtn">⚙ Settings</button>
+    </div>
+  </div>
+
+  <div class="content">
+    <div class="panel" id="transcriptPanel">
+      <h3>Live Transcript</h3>
+      <div id="transcriptBody"><div class="placeholder">Press "Record" and start talking, or type below — your notes will appear here in real time.</div></div>
+      <div class="type-row">
+        <input type="text" id="typeInput" placeholder="Type a note and press Enter…" autocomplete="off" />
+        <button id="typeAddBtn">Add</button>
+      </div>
+    </div>
+    <div class="panel">
+      <div style="display:flex; align-items:center; justify-content:space-between;">
+        <h3 style="margin-bottom:0;">Summary <span class="badge" id="aiModeBadge">Heuristic</span></h3>
+        <button class="icon-btn" id="regenerateBtn" style="padding:4px 10px; font-size:12px;">Regenerate</button>
+      </div>
+      <div class="summary-block" style="margin-top:12px;">
+        <div class="summary-text" id="summaryText">Summary will be generated automatically as the meeting progresses.</div>
+      </div>
+      <h3>Action Items <span class="badge" id="actionCount">0</span></h3>
+      <div id="actionItems"><div class="placeholder" style="padding:10px 0;">No action items detected yet.</div></div>
+      <h3 style="margin-top:26px;">Key Topics</h3>
+      <div id="keywords"><div class="placeholder" style="padding:10px 0;">—</div></div>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="settingsOverlay">
+  <div class="modal">
+    <h2>Settings</h2>
+    <label class="modal-label">Anthropic API Key</label>
+    <input type="password" id="apiKeyInput" class="modal-input" placeholder="sk-ant-..." autocomplete="off" />
+    <p class="modal-hint">Stored only in this browser's local storage. Used to call the Anthropic API directly from your browser for real AI summaries and action items. Leave blank to use the built-in offline heuristic instead.</p>
+    <div class="modal-actions">
+      <button class="icon-btn" id="clearKeyBtn">Clear Key</button>
+      <button class="new-btn" id="saveKeyBtn" style="margin:0; width:auto;">Save</button>
+    </div>
+  </div>
+</div>
+
+<script>
+(function () {
+  const STORAGE_KEY = 'recap_meetings_v1';
+  let meetings;
+  try {
+    meetings = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
+    if (!Array.isArray(meetings)) meetings = [];
+  } catch (err) {
+    console.warn('Corrupted local meeting data, resetting.', err);
+    meetings = [];
+  }
+  let currentId = null;
+  let recognition = null;
+  let isRecording = false;
+
+  const meetingListEl = document.getElementById('meetingList');
+  const titleInput = document.getElementById('titleInput');
+  const transcriptBody = document.getElementById('transcriptBody');
+  const summaryText = document.getElementById('summaryText');
+  const actionItemsEl = document.getElementById('actionItems');
+  const actionCountEl = document.getElementById('actionCount');
+  const keywordsEl = document.getElementById('keywords');
+  const recBtn = document.getElementById('recBtn');
+  const recLabel = document.getElementById('recLabel');
+
+  function save() {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(meetings));
+  }
+
+  function persist(m) {
+    m.updatedAt = Date.now();
+    save();
+    if (m.shared) scheduleSyncPush(m);
+  }
+
+  // --- Multi-user sync (local Recap sync server, see server.js) ---
+  const SYNC_BASE = (localStorage.getItem('recap_sync_base') || 'http://localhost:5175').replace(/\/$/, '');
+  const syncPushTimers = new Map();
+  let pollTimer = null;
+  let pollingId = null;
+
+  function updateSyncBadge(m) {
+    const badge = document.getElementById('syncBadge');
+    if (m && m.shared) {
+      badge.style.display = 'inline-block';
+      badge.textContent = '● Synced';
+    } else {
+      badge.style.display = 'none';
+    }
+  }
+
+  async function pushMeetingToServer(m) {
+    try {
+      await fetch(`${SYNC_BASE}/api/meetings/${m.id}`, {
+        method: 'PUT',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify(m),
+      });
+    } catch (err) {
+      console.warn('Sync push failed (is server.js running?)', err);
+    }
+  }
+
+  function scheduleSyncPush(m) {
+    clearTimeout(syncPushTimers.get(m.id));
+    syncPushTimers.set(m.id, setTimeout(() => pushMeetingToServer(m), 600));
+  }
+
+  function startPolling(id) {
+    pollingId = id;
+    clearInterval(pollTimer);
+    pollTimer = setInterval(async () => {
+      if (!pollingId) return;
+      try {
+        const res = await fetch(`${SYNC_BASE}/api/meetings/${pollingId}`);
+        if (!res.ok) return;
+        const remote = await res.json();
+        const idx = meetings.findIndex(x => x.id === pollingId);
+        if (idx < 0) return;
+        const local = meetings[idx];
+        if ((remote.updatedAt || 0) > (local.updatedAt || 0)) {
+          meetings[idx] = remote;
+          save();
+          renderMeetingList();
+          if (currentId === pollingId) renderCurrent();
+        }
+      } catch (err) {
+        // Sync server unreachable — keep working offline, try again next tick.
+      }
+    }, 3000);
+  }
+
+  async function shareMeeting(m) {
+    m.shared = true;
+    m.updatedAt = Date.now();
+    save();
+    await pushMeetingToServer(m);
+    startPolling(m.id);
+    updateSyncBadge(m);
+    const url = `${location.origin}${location.pathname}?meeting=${m.id}`;
+    try {
+      await navigator.clipboard.writeText(url);
+      alert(`Shareable link copied to clipboard:\n${url}\n\nAnyone who opens it (with the sync server running) will see live updates to this meeting.`);
+    } catch (err) {
+      prompt('Copy this shareable link:', url);
+    }
+  }
+
+  async function loadSharedMeeting(id) {
+    try {
+      const res = await fetch(`${SYNC_BASE}/api/meetings/${id}`);
+      if (!res.ok) throw new Error('Meeting not found on server');
+      const remote = await res.json();
+      const idx = meetings.findIndex(x => x.id === id);
+      if (idx >= 0) meetings[idx] = remote; else meetings.unshift(remote);
+      currentId = id;
+      save();
+      renderMeetingList();
+      renderCurrent();
+      startPolling(id);
+    } catch (err) {
+      alert('Could not load the shared meeting. Make sure the Recap sync server is running (node server.js) and try again.');
+    }
+  }
+
+  function addTranscriptLine(text) {
+    text = text.trim();
+    if (!text) return;
+    let m = getCurrent();
+    if (!m) { newMeeting(); m = getCurrent(); }
+    const time = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    m.transcript.push({ text, time });
+    recomputeActionItems(m);
+    persist(m);
+    renderTranscript();
+    renderSummary();
+    renderActionItems();
+    renderKeywords();
+    scheduleAIRegenerate(m);
+  }
+
+  function newMeeting() {
+    const m = {
+      id: Date.now().toString(36),
+      title: '',
+      createdAt: new Date().toISOString(),
+      transcript: [], // {text, time}
+      actionItems: [], // {text, done} — heuristic
+      ai: { summary: null, actionItems: null, generatedForLen: 0, loading: false, error: null },
+      shared: false,
+      updatedAt: Date.now(),
+    };
+    meetings.unshift(m);
+    currentId = m.id;
+    save();
+    renderMeetingList();
+    renderCurrent();
+  }
+
+  function getCurrent() {
+    return meetings.find(m => m.id === currentId);
+  }
+
+  function renderMeetingList() {
+    meetingListEl.innerHTML = '';
+    if (!meetings.length) {
+      meetingListEl.innerHTML = '<div class="empty-list">No meetings yet. Click "New Meeting" to start.</div>';
+      return;
+    }
+    meetings.forEach(m => {
+      const div = document.createElement('div');
+      div.className = 'meeting-item' + (m.id === currentId ? ' active' : '');
+      const d = new Date(m.createdAt);
+      div.innerHTML = `<div class="title">${escapeHtml(m.title || 'Untitled meeting')}</div><div class="date">${d.toLocaleDateString()} · ${d.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}</div>`;
+      div.addEventListener('click', () => {
+        stopRecording();
+        currentId = m.id;
+        renderMeetingList();
+        renderCurrent();
+      });
+      meetingListEl.appendChild(div);
+    });
+  }
+
+  function escapeHtml(str) {
+    const d = document.createElement('div');
+    d.textContent = str;
+    return d.innerHTML;
+  }
+
+  function renderCurrent() {
+    const m = getCurrent();
+    if (!m) {
+      titleInput.value = '';
+      transcriptBody.innerHTML = '<div class="placeholder">Select or start a meeting.</div>';
+      summaryText.textContent = 'Summary will be generated automatically as the meeting progresses.';
+      actionItemsEl.innerHTML = '<div class="placeholder" style="padding:10px 0;">No action items detected yet.</div>';
+      actionCountEl.textContent = '0';
+      keywordsEl.innerHTML = '<div class="placeholder" style="padding:10px 0;">—</div>';
+      updateSyncBadge(null);
+      return;
+    }
+    titleInput.value = m.title;
+    recomputeActionItems(m);
+    renderTranscript();
+    renderSummary();
+    renderActionItems();
+    renderKeywords();
+    updateSyncBadge(m);
+    if (m.shared && pollingId !== m.id) startPolling(m.id);
+  }
+
+  function renderTranscript(interim) {
+    const m = getCurrent();
+    if (!m) return;
+    if (!m.transcript.length && !interim) {
+      transcriptBody.innerHTML = '<div class="placeholder">Press "Record" and start talking, or type below — your notes will appear here in real time.</div>';
+      return;
+    }
+    transcriptBody.innerHTML = m.transcript.map(line =>
+      `<div class="transcript-line"><span class="t">${line.time}</span>${escapeHtml(line.text)}</div>`
+    ).join('');
+    if (interim) {
+      transcriptBody.innerHTML += `<div class="transcript-line interim">${escapeHtml(interim)}</div>`;
+    }
+    transcriptBody.scrollTop = transcriptBody.scrollHeight;
+  }
+
+  // --- Naive on-device NLP: sentence extraction, action-item detection, keyword frequency ---
+  const ACTION_PATTERNS = [
+    /\b(i|we|you|he|she|they)\s+(will|'ll|need to|have to|should|must|are going to|is going to)\b/i,
+    /\b(let's|lets)\b/i,
+    /\bto[- ]?do\b/i,
+    /\baction item\b/i,
+    /\bfollow up\b/i,
+    /\bby (monday|tuesday|wednesday|thursday|friday|saturday|sunday|tomorrow|next week|end of day|eod|friday)\b/i,
+    /\bcan you\b/i,
+    /\bplease\b/i,
+    /\bassign(ed)? to\b/i,
+  ];
+  const STOPWORDS = new Set('the a an and or but if is are was were be been being to of in on at for with as by from this that these those it its it\'s we our you your i my they their he she his her not so than then just about into over under again further here there all any both each few more most other some such no nor only own same too very can will should now do does did have has had'.split(' '));
+
+  function fullText(m) {
+    return m.transcript.map(l => l.text).join(' ');
+  }
+
+  function splitSentences(text) {
+    return text.split(/(?<=[.?!])\s+/).map(s => s.trim()).filter(Boolean);
+  }
+
+  // --- Calendar (.ics) export, with follow-up detection from action items ---
+  const WEEKDAYS = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
+
+  function detectFollowUpDate(text, baseDate) {
+    const t = text.toLowerCase();
+    if (/\btomorrow\b/.test(t)) {
+      const d = new Date(baseDate); d.setDate(d.getDate() + 1); return d;
+    }
+    if (/\bnext week\b/.test(t)) {
+      const d = new Date(baseDate); d.setDate(d.getDate() + 7); return d;
+    }
+    if (/\b(eod|end of day)\b/.test(t)) {
+      return new Date(baseDate);
+    }
+    for (let i = 0; i < WEEKDAYS.length; i++) {
+      if (new RegExp(`\\b${WEEKDAYS[i]}\\b`).test(t)) {
+        const d = new Date(baseDate);
+        const diff = (i + 7 - d.getDay()) % 7 || 7;
+        d.setDate(d.getDate() + diff);
+        return d;
+      }
+    }
+    return null;
+  }
+
+  function pad2(n) { return String(n).padStart(2, '0'); }
+
+  function icsDate(d) {
+    return d.getUTCFullYear() + pad2(d.getUTCMonth() + 1) + pad2(d.getUTCDate()) + 'T' +
+      pad2(d.getUTCHours()) + pad2(d.getUTCMinutes()) + pad2(d.getUTCSeconds()) + 'Z';
+  }
+
+  function icsEscape(str) {
+    return String(str).replace(/\\/g, '\\\\').replace(/;/g, '\\;').replace(/,/g, '\\,').replace(/\n/g, '\\n');
+  }
+
+  function buildICS(m) {
+    const start = new Date(m.createdAt);
+    const end = new Date(start.getTime() + 30 * 60000);
+    const summary = aiUpToDate(m) ? m.ai.summary : generateSummary(m);
+    const items = aiUpToDate(m) ? m.ai.actionItems : m.actionItems;
+
+    const lines = ['BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//Recap//Meeting Notes MVP//EN', 'CALSCALE:GREGORIAN'];
+
+    const mainDesc = [summary, '', 'Action items:', ...(items.length ? items.map(i => `- ${i.text}`) : ['- None detected'])].join('\n');
+    lines.push(
+      'BEGIN:VEVENT',
+      `UID:${m.id}@recap-mvp`,
+      `DTSTAMP:${icsDate(new Date())}`,
+      `DTSTART:${icsDate(start)}`,
+      `DTEND:${icsDate(end)}`,
+      `SUMMARY:${icsEscape(m.title || 'Untitled meeting')}`,
+      `DESCRIPTION:${icsEscape(mainDesc)}`,
+      'END:VEVENT'
+    );
+
+    const groups = new Map();
+    items.forEach(item => {
+      const d = detectFollowUpDate(item.text, start);
+      if (d) {
+        const key = d.toISOString().slice(0, 10);
+        if (!groups.has(key)) groups.set(key, []);
+        groups.get(key).push(item.text);
+      }
+    });
+    let idx = 0;
+    groups.forEach((texts, dateKey) => {
+      idx++;
+      const fuStart = new Date(dateKey + 'T10:00:00');
+      const fuEnd = new Date(fuStart.getTime() + 30 * 60000);
+      lines.push(
+        'BEGIN:VEVENT',
+        `UID:${m.id}-followup-${idx}@recap-mvp`,
+        `DTSTAMP:${icsDate(new Date())}`,
+        `DTSTART:${icsDate(fuStart)}`,
+        `DTEND:${icsDate(fuEnd)}`,
+        `SUMMARY:${icsEscape('Follow-up: ' + (m.title || 'meeting'))}`,
+        `DESCRIPTION:${icsEscape('Action items due:\n' + texts.map(t => '- ' + t).join('\n'))}`,
+        'END:VEVENT'
+      );
+    });
+
+    lines.push('END:VCALENDAR');
+    return lines.join('\r\n');
+  }
+
+  function downloadICS(m) {
+    const ics = buildICS(m);
+    const blob = new Blob([ics], { type: 'text/calendar;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${(m.title || 'meeting').replace(/[^a-z0-9]+/gi, '-').toLowerCase()}.ics`;
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+
+  function recomputeActionItems(m) {
+    const sentences = splitSentences(fullText(m));
+    const prevDone = new Map(m.actionItems.map(a => [a.text.toLowerCase(), a.done]));
+    const found = [];
+    const seen = new Set();
+    sentences.forEach(s => {
+      if (s.split(' ').length < 3) return;
+      const key = s.toLowerCase();
+      if (seen.has(key)) return;
+      if (ACTION_PATTERNS.some(re => re.test(s))) {
+        seen.add(key);
+        found.push({ text: s, done: prevDone.get(key) || false });
+      }
+    });
+    m.actionItems = found;
+  }
+
+  function generateSummary(m) {
+    const text = fullText(m);
+    if (!text.trim()) return 'Summary will be generated automatically as the meeting progresses.';
+    const sentences = splitSentences(text);
+    if (sentences.length <= 3) return sentences.join(' ');
+
+    const freq = {};
+    sentences.forEach(s => {
+      s.toLowerCase().replace(/[^a-z0-9\s]/g, '').split(/\s+/).forEach(w => {
+        if (w && !STOPWORDS.has(w)) freq[w] = (freq[w] || 0) + 1;
+      });
+    });
+
+    const scored = sentences.map((s, i) => {
+      const words = s.toLowerCase().replace(/[^a-z0-9\s]/g, '').split(/\s+/);
+      let score = 0;
+      words.forEach(w => { if (freq[w]) score += freq[w]; });
+      score = score / Math.max(words.length, 1);
+      // Slight boost for earlier sentences (often set context)
+      if (i < 2) score *= 1.15;
+      return { s, i, score };
+    });
+
+    const topCount = Math.min(4, Math.max(2, Math.round(sentences.length / 6)));
+    const top = scored.sort((a, b) => b.score - a.score).slice(0, topCount).sort((a, b) => a.i - b.i);
+    return top.map(t => t.s).join(' ');
+  }
+
+  function topKeywords(m, n) {
+    const text = fullText(m).toLowerCase().replace(/[^a-z0-9\s]/g, '');
+    const freq = {};
+    text.split(/\s+/).forEach(w => {
+      if (w.length > 2 && !STOPWORDS.has(w)) freq[w] = (freq[w] || 0) + 1;
+    });
+    return Object.entries(freq).sort((a, b) => b[1] - a[1]).slice(0, n).map(e => e[0]);
+  }
+
+  // --- Real LLM summarization (Anthropic API, called directly from the browser) ---
+  const AI_KEY_STORAGE = 'recap_anthropic_key';
+  const aiDebounceTimers = new Map();
+
+  function anthropicApiKey() {
+    return (localStorage.getItem(AI_KEY_STORAGE) || '').trim();
+  }
+
+  function aiUpToDate(m) {
+    return !!(m && m.ai && typeof m.ai.summary === 'string' && m.ai.generatedForLen === m.transcript.length);
+  }
+
+  async function callAnthropicSummary(transcriptText) {
+    const key = anthropicApiKey();
+    const res = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: {
+        'content-type': 'application/json',
+        'x-api-key': key,
+        'anthropic-version': '2023-06-01',
+        'anthropic-dangerous-direct-browser-access': 'true',
+      },
+      body: JSON.stringify({
+        model: 'claude-haiku-4-5-20251001',
+        max_tokens: 600,
+        system: 'You summarize meeting transcripts for a meeting-notes app. Respond ONLY with strict JSON of the form {"summary": string, "action_items": string[]}. No markdown formatting, no code fences, no extra commentary. Keep the summary to 2-4 concise sentences. Extract action items only if clearly present as short imperative phrases; use an empty array if none.',
+        messages: [{ role: 'user', content: transcriptText }],
+      }),
+    });
+    if (!res.ok) {
+      const errText = await res.text().catch(() => '');
+      throw new Error(`Anthropic API error ${res.status}: ${errText.slice(0, 200)}`);
+    }
+    const data = await res.json();
+    const raw = (data.content && data.content[0] && data.content[0].text) || '';
+    const cleaned = raw.trim().replace(/^```json\s*/i, '').replace(/^```\s*/, '').replace(/```$/, '').trim();
+    const parsed = JSON.parse(cleaned);
+    return {
+      summary: parsed.summary || '',
+      actionItems: Array.isArray(parsed.action_items) ? parsed.action_items : [],
+    };
+  }
+
+  async function regenerateWithAI(m, opts) {
+    opts = opts || {};
+    if (!anthropicApiKey()) {
+      if (opts.manual) alert('Add your Anthropic API key in Settings to enable AI-generated summaries.');
+      return;
+    }
+    if (!m.transcript.length) return;
+    m.ai = m.ai || { summary: null, actionItems: null, generatedForLen: 0, loading: false, error: null };
+    m.ai.loading = true;
+    m.ai.error = null;
+    if (getCurrent() && getCurrent().id === m.id) { renderSummary(); renderActionItems(); }
+
+    const prevItems = m.ai.actionItems || [];
+    try {
+      const result = await callAnthropicSummary(fullText(m));
+      const prevDone = new Map(prevItems.map(a => [a.text.toLowerCase(), a.done]));
+      m.ai.summary = result.summary;
+      m.ai.actionItems = result.actionItems.map(t => ({ text: t, done: prevDone.get(t.toLowerCase()) || false }));
+      m.ai.generatedForLen = m.transcript.length;
+      m.ai.error = null;
+    } catch (err) {
+      console.warn('AI summary failed', err);
+      m.ai.error = err.message;
+    }
+    m.ai.loading = false;
+    persist(m);
+    if (getCurrent() && getCurrent().id === m.id) { renderSummary(); renderActionItems(); }
+  }
+
+  function scheduleAIRegenerate(m) {
+    if (!anthropicApiKey()) return;
+    clearTimeout(aiDebounceTimers.get(m.id));
+    aiDebounceTimers.set(m.id, setTimeout(() => regenerateWithAI(m), 1200));
+  }
+
+  function renderAiBadge(m) {
+    const badge = document.getElementById('aiModeBadge');
+    if (!m) { badge.textContent = 'Heuristic'; return; }
+    if (m.ai && m.ai.loading) badge.textContent = 'Generating…';
+    else if (aiUpToDate(m)) badge.textContent = 'AI';
+    else if (m.ai && m.ai.error) badge.textContent = 'AI error — heuristic';
+    else badge.textContent = 'Heuristic';
+  }
+
+  function renderSummary() {
+    const m = getCurrent();
+    if (!m) { summaryText.textContent = 'Summary will be generated automatically as the meeting progresses.'; renderAiBadge(m); return; }
+    summaryText.textContent = aiUpToDate(m) ? m.ai.summary : generateSummary(m);
+    renderAiBadge(m);
+  }
+
+  function renderActionItems() {
+    const m = getCurrent();
+    const items = aiUpToDate(m) ? m.ai.actionItems : m.actionItems;
+    actionCountEl.textContent = items.length;
+    if (!items.length) {
+      actionItemsEl.innerHTML = '<div class="placeholder" style="padding:10px 0;">No action items detected yet.</div>';
+      return;
+    }
+    actionItemsEl.innerHTML = '';
+    items.forEach((item, idx) => {
+      const row = document.createElement('div');
+      row.className = 'action-item' + (item.done ? ' done' : '');
+      row.innerHTML = `<input type="checkbox" id="ai-${idx}" ${item.done ? 'checked' : ''}/><label for="ai-${idx}">${escapeHtml(item.text)}</label>`;
+      row.querySelector('input').addEventListener('change', (e) => {
+        item.done = e.target.checked;
+        persist(m);
+        renderActionItems();
+      });
+      actionItemsEl.appendChild(row);
+    });
+  }
+
+  function renderKeywords() {
+    const m = getCurrent();
+    const kws = topKeywords(m, 8);
+    if (!kws.length) {
+      keywordsEl.innerHTML = '<div class="placeholder" style="padding:10px 0;">—</div>';
+      return;
+    }
+    keywordsEl.innerHTML = kws.map(k => `<span class="kw">${escapeHtml(k)}</span>`).join('');
+  }
+
+  // --- Speech recognition ---
+  const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+
+  function setupRecognition() {
+    if (!SpeechRecognition) return null;
+    const rec = new SpeechRecognition();
+    rec.continuous = true;
+    rec.interimResults = true;
+    rec.lang = 'en-US';
+
+    rec.onresult = (event) => {
+      const m = getCurrent();
+      if (!m) return;
+      let interim = '';
+      for (let i = event.resultIndex; i < event.results.length; i++) {
+        const res = event.results[i];
+        if (res.isFinal) {
+          const text = res[0].transcript.trim();
+          if (text) addTranscriptLine(text);
+        } else {
+          interim += res[0].transcript;
+        }
+      }
+      if (interim) renderTranscript(interim);
+    };
+
+    rec.onerror = (e) => {
+      console.warn('Speech recognition error', e.error);
+      if (e.error === 'not-allowed' || e.error === 'service-not-allowed') {
+        alert('Microphone access was denied. Please allow microphone access to record.');
+        stopRecording();
+      }
+    };
+
+    rec.onend = () => {
+      if (isRecording) {
+        try { rec.start(); } catch (e) {}
+      }
+    };
+
+    return rec;
+  }
+
+  function startRecording() {
+    if (!getCurrent()) newMeeting();
+    if (!SpeechRecognition) {
+      alert('Live transcription needs a browser with Web Speech API support (e.g. Chrome or Edge). You can still create meetings and type notes manually in future versions.');
+      return;
+    }
+    recognition = setupRecognition();
+    if (!recognition) return;
+    isRecording = true;
+    recognition.start();
+    recBtn.classList.add('recording');
+    recLabel.textContent = 'Stop';
+  }
+
+  function stopRecording() {
+    isRecording = false;
+    if (recognition) {
+      recognition.onend = null;
+      recognition.stop();
+      recognition = null;
+    }
+    recBtn.classList.remove('recording');
+    recLabel.textContent = 'Record';
+  }
+
+  recBtn.addEventListener('click', () => {
+    if (isRecording) stopRecording();
+    else startRecording();
+  });
+
+  const typeInput = document.getElementById('typeInput');
+  const typeAddBtn = document.getElementById('typeAddBtn');
+
+  function submitTypedLine() {
+    const text = typeInput.value;
+    if (!text.trim()) return;
+    addTranscriptLine(text);
+    typeInput.value = '';
+    typeInput.focus();
+  }
+  typeAddBtn.addEventListener('click', submitTypedLine);
+  typeInput.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      submitTypedLine();
+    }
+  });
+
+  document.getElementById('newMeetingBtn').addEventListener('click', () => {
+    stopRecording();
+    newMeeting();
+  });
+
+  titleInput.addEventListener('input', () => {
+    const m = getCurrent();
+    if (!m) return;
+    m.title = titleInput.value;
+    persist(m);
+    renderMeetingList();
+  });
+
+  document.getElementById('shareBtn').addEventListener('click', () => {
+    const m = getCurrent();
+    if (!m) { alert('No meeting selected.'); return; }
+    shareMeeting(m);
+  });
+
+  document.getElementById('calendarBtn').addEventListener('click', () => {
+    const m = getCurrent();
+    if (!m) { alert('No meeting selected.'); return; }
+    if (!m.transcript.length) { alert('Add some transcript content first.'); return; }
+    downloadICS(m);
+  });
+
+  document.getElementById('exportBtn').addEventListener('click', () => {
+    const m = getCurrent();
+    if (!m) { alert('No meeting selected.'); return; }
+    const lines = [];
+    lines.push(`# ${m.title || 'Untitled meeting'}`);
+    lines.push(`_${new Date(m.createdAt).toLocaleString()}_\n`);
+    lines.push('## Summary');
+    lines.push((aiUpToDate(m) ? m.ai.summary : generateSummary(m)) + '\n');
+    lines.push('## Action Items');
+    const exportItems = aiUpToDate(m) ? m.ai.actionItems : m.actionItems;
+    if (exportItems.length) {
+      exportItems.forEach(a => lines.push(`- [${a.done ? 'x' : ' '}] ${a.text}`));
+    } else {
+      lines.push('_None detected_');
+    }
+    lines.push('\n## Transcript');
+    m.transcript.forEach(l => lines.push(`**${l.time}** ${l.text}`));
+
+    const blob = new Blob([lines.join('\n')], { type: 'text/markdown' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${(m.title || 'meeting').replace(/[^a-z0-9]+/gi, '-').toLowerCase()}.md`;
+    a.click();
+    URL.revokeObjectURL(url);
+  });
+
+  // Settings modal (Anthropic API key)
+  const settingsOverlay = document.getElementById('settingsOverlay');
+  const apiKeyInput = document.getElementById('apiKeyInput');
+  document.getElementById('settingsBtn').addEventListener('click', () => {
+    apiKeyInput.value = anthropicApiKey();
+    settingsOverlay.classList.add('open');
+  });
+  settingsOverlay.addEventListener('click', (e) => {
+    if (e.target === settingsOverlay) settingsOverlay.classList.remove('open');
+  });
+  document.getElementById('saveKeyBtn').addEventListener('click', () => {
+    const key = apiKeyInput.value.trim();
+    if (key) localStorage.setItem(AI_KEY_STORAGE, key);
+    else localStorage.removeItem(AI_KEY_STORAGE);
+    settingsOverlay.classList.remove('open');
+    renderSummary();
+    const m = getCurrent();
+    if (m) scheduleAIRegenerate(m);
+  });
+  document.getElementById('clearKeyBtn').addEventListener('click', () => {
+    localStorage.removeItem(AI_KEY_STORAGE);
+    apiKeyInput.value = '';
+    renderSummary();
+  });
+
+  document.getElementById('regenerateBtn').addEventListener('click', () => {
+    const m = getCurrent();
+    if (!m) return;
+    if (!m.transcript.length) { alert('Add some transcript content first.'); return; }
+    regenerateWithAI(m, { manual: true });
+  });
+
+  // Init
+  if (!SpeechRecognition) {
+    const warn = document.createElement('div');
+    warn.className = 'unsupported';
+    warn.style.position = 'fixed';
+    warn.style.bottom = '16px';
+    warn.style.right = '16px';
+    warn.style.background = 'var(--panel-2)';
+    warn.style.border = '1px solid var(--border)';
+    warn.style.borderRadius = '10px';
+    warn.style.fontSize = '12px';
+    warn.style.maxWidth = '280px';
+    warn.textContent = 'Live transcription works best in Chrome or Edge (Web Speech API).';
+    document.body.appendChild(warn);
+  }
+
+  renderMeetingList();
+  if (meetings.length) {
+    currentId = meetings[0].id;
+  }
+  renderCurrent();
+
+  const sharedMeetingId = new URLSearchParams(location.search).get('meeting');
+  if (sharedMeetingId) loadSharedMeeting(sharedMeetingId);
+})();
+</script>
+</body>
+</html>
