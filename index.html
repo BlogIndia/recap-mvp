@@ -388,7 +388,7 @@
   }
 
   // --- Multi-user sync (local Recap sync server, see server.js) ---
-  const SYNC_BASE = (localStorage.getItem('recap_sync_base') || 'http://localhost:5175').replace(/\/$/, '');
+  const SYNC_BASE = (localStorage.getItem('recap_sync_base') || 'https://recap-mvp.onrender.com').replace(/\/$/, '');
   const syncPushTimers = new Map();
   let pollTimer = null;
   let pollingId = null;
